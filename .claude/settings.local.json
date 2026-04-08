@@ -11,7 +11,20 @@
       "Bash(npm run:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:api.github.com)"
+      "WebFetch(domain:api.github.com)",
+      "Bash(node_modules/.bin/next build:*)",
+      "Bash(NODE_OPTIONS=\"--stack-trace-limit=50\" node_modules/.bin/next build)",
+      "Bash(npx next:*)",
+      "Bash(curl -s http://localhost:3000)",
+      "Read(//d/zolbayar/cmsAdmin/**)",
+      "Bash(node -e ':*)",
+      "Bash(node -e \"const c = require\\('./d:/zolbayar/cmsAdmin/next.config.js'\\); console.log\\(typeof c.generateBuildId\\);\")",
+      "Bash(node -e \"const c = require\\('./next.config.js'\\); console.log\\(typeof c.generateBuildId\\);\")",
+      "Bash(node -e \"const n = require\\('next/dist/compiled/nanoid/index.cjs'\\); console.log\\(typeof n.nanoid, typeof n.generate, Object.keys\\(n\\)\\);\")",
+      "Bash(cat d:/zolbayar/cmsAdmin/.next/diagnostics/*.json)",
+      "Bash(python3 -c \"import sys,json; data=[json.loads\\(l\\) for l in sys.stdin if l.strip\\(\\)]; [print\\(d\\) for d in data[-10:]]\")",
+      "Bash(node -e \"const b = require\\('./node_modules/next/lib/bundler'\\); console.log\\(b.Bundler\\);\")",
+      "Bash(node -e \"const b = require\\('next/dist/lib/bundler'\\); console.log\\(JSON.stringify\\(b.Bundler\\)\\);\")"
     ]
   }
 }

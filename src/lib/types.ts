@@ -1,128 +1,64 @@
-// ─── Matches Super Admin data model exactly ───────────────────────────────────
+// ─── Template types (from Super Admin) ───────────────────────────────────────
 
-export interface ComponentImage {
+export type FieldType = "text" | "textarea" | "image" | "url" | "color" | "richtext";
+
+export interface TemplateField {
   id: string;
-  url: string;
-  alt: string;
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
+  label: string;
+  type: FieldType;
+  placeholder?: string;
+  required?: boolean;
+  defaultValue?: string;
 }
 
-export interface GridItem {
+export interface TemplateSection {
   id: string;
-  title?: string;
-  description?: string;
-  image?: string;
-  colSpan?: number;
-}
-
-export interface NavLinks {
-  home: string;
-  about: string;
-  services: string;
-  contact: string;
-}
-
-export interface FooterLinks {
-  privacy: string;
-  terms: string;
-  contact: string;
-}
-
-export interface ContactInfo {
-  email: string;
-  phone: string;
-  address: string;
-}
-
-export interface ComponentContent {
-  title?: string;
-  subtitle?: string;
-  description?: string;
-  buttonText?: string;
-  images?: ComponentImage[];
-  navLinks?: NavLinks;
-  footerLinks?: FooterLinks;
-  copyright?: string;
-  contactInfo?: ContactInfo;
-  services?: string[];
-  gridItems?: GridItem[];
-}
-
-export interface ComponentStyles {
-  backgroundColor?: string;
-  textColor?: string;
-  headingColor?: string;
-  buttonBackgroundColor?: string;
-  buttonTextColor?: string;
-  linkColor?: string;
-  borderColor?: string;
-  padding?: string;
-  margin?: string;
-  borderRadius?: string;
-}
-
-export type ComponentType =
-  | "home"
-  | "about"
-  | "service"
-  | "contact"
-  | "header"
-  | "footer"
-  | "card"
-  | "text"
-  | "gif"
-  | "grid"
-  | "image"
-  | "news"
-  | "rental"
-  | "jobs"
-  | "contact-form"
-  | "chatbot";
-
-export interface TemplateComponent {
-  id: string;
-  type: ComponentType;
-  content: ComponentContent;
-  styles: ComponentStyles;
+  name: string;
+  description: string;
+  fields: TemplateField[];
 }
 
 export interface Template {
   id: string;
   name: string;
-  category: string;
-  rating: number;
-  downloads: number;
-  thumbnail?: string;
-  components: TemplateComponent[];
+  description: string;
+  thumbnail: string;
+  category: "business" | "portfolio" | "restaurant" | "ecommerce" | "landing";
+  sections: TemplateSection[];
+  createdAt: string;
+  isPremium?: boolean;
 }
 
-// ─── Website (created by admin, stored in super admin backend) ────────────────
+// ─── Website (Admin-created) ──────────────────────────────────────────────────
 
-export type WebsiteStatus = "draft" | "published";
+export type WebsiteStatus = "draft" | "published" | "archived";
+
+export interface SectionContent {
+  sectionId: string;
+  values: Record<string, string>;
+}
 
 export interface Website {
   id: string;
   name: string;
   templateId: string;
-  userId: string;
-  domain?: string;
   status: WebsiteStatus;
-  components: TemplateComponent[]; // customized copy of template components
+  domain?: string;
+  content: SectionContent[];
   createdAt: string;
   updatedAt: string;
   publishedAt?: string;
+  companyName: string;
+  companyLogo?: string;
 }
 
-// ─── Super Admin User (the admin account in super admin's system) ─────────────
+// ─── Auth ─────────────────────────────────────────────────────────────────────
 
-export interface SuperAdminUser {
+export interface AdminUser {
   id: string;
   name: string;
   email: string;
-  domain: string;
-  status: "active" | "inactive";
-  createdAt: string;
+  role: "admin";
+  companyName: string;
+  avatar?: string;
 }

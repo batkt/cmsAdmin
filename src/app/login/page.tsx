@@ -4,23 +4,29 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
 
 export default function LoginPage() {
-  const { login, authError } = useAuthStore();
+  const login = useAuthStore((s) => s.login);
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState("admin@company.mn");
+  const [password, setPassword] = useState("password123");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    const ok = await login(email.trim());
+    const ok = await login(email, password);
     setLoading(false);
-    if (!ok) router.push("/dashboard");
+    if (ok) {
+      router.push("/dashboard");
+    } else {
+      setError("Имэйл эсвэл нууц үг буруу байна.");
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 mb-4">
             <svg
@@ -37,49 +43,62 @@ export default function LoginPage() {
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white">CMS Админ</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Админ имэйлээрээ нэвтэрнэ үү
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+            CMS Админ
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+            Вебсайт удирдах систем
           </p>
         </div>
 
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-xl">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-8 shadow-xl">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                Email
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                Имэйл
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                autoFocus
-                className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                placeholder="your@email.com"
+                className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded-lg px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                placeholder="admin@company.mn"
               />
             </div>
 
-            {authError && (
-              <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-4 py-3 text-sm">
-                {authError}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                Нууц үг
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded-lg px-4 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                placeholder="••••••••"
+              />
+            </div>
+
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/30 text-red-500 dark:text-red-400 rounded-lg px-4 py-3 text-sm">
+                {error}
               </div>
             )}
 
             <button
               type="submit"
-              disabled={loading || !email.trim()}
+              disabled={loading}
               className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg transition text-sm"
             >
-              {loading ? "Уншиж байна..." : "Нэвтрэх"}
+              {loading ? "Нэвтэрч байна..." : "Нэвтрэх"}
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-slate-700">
+          <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
             <p className="text-xs text-slate-500 text-center">
-              Таны бүртгэлыг админ имэйлээр хийсэн байх ёстой.
-              <br />
-              Make sure the super admin server is running.
+              Туршилтын нэвтрэх мэдээлэл дээр бөглөгдсөн байна
             </p>
           </div>
         </div>
