@@ -82,8 +82,8 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {projects.slice(0, 5).map((proj) => (
-                <div key={proj.projectName} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex items-center justify-between gap-3">
+              {projects.slice(0, 5).map((proj, i) => (
+                <div key={proj.projectName ?? i} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-slate-900 dark:text-white font-medium truncate">{proj.projectName}</p>
                     {proj.domain && <p className="text-slate-500 text-xs mt-0.5 truncate">{proj.domain as string}</p>}

@@ -4,8 +4,14 @@
  */
 
 import type {
-  ApiUser, AuthTokens, Project, Design, DesignTheme, DesignPage,
-  ComponentInstance, DomainBinding,
+  ApiUser,
+  AuthTokens,
+  Project,
+  Design,
+  DesignTheme,
+  DesignPage,
+  ComponentInstance,
+  DomainBinding,
 } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v2";
@@ -42,7 +48,8 @@ async function call<T>(path: string, opts: CallOptions = {}): Promise<T> {
 
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (!noAuth && _accessToken) headers["Authorization"] = `Bearer ${_accessToken}`;
+  if (!noAuth && _accessToken)
+    headers["Authorization"] = `Bearer ${_accessToken}`;
   if (projectId) headers["x-project-id"] = projectId;
 
   const res = await fetch(`${BASE}${path}`, {
@@ -99,7 +106,10 @@ async function attemptRefresh(): Promise<boolean> {
 }
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
     super(message);
     this.name = "ApiError";
   }
@@ -116,7 +126,10 @@ export interface LoginResponse {
   expiresIn: string;
 }
 
-export async function login(email: string, password: string): Promise<LoginResponse> {
+export async function login(
+  email: string,
+  password: string,
+): Promise<LoginResponse> {
   return call<LoginResponse>("/core/auth/login", {
     method: "POST",
     body: { email, password },
@@ -138,8 +151,12 @@ export async function getMe(): Promise<ApiUser> {
 // ─── 2. Projects ──────────────────────────────────────────────────────────────
 
 export async function getProjects(): Promise<Project[]> {
-  const result = await call<Project[] | { projects: Project[] }>("/core/projects");
-  return Array.isArray(result) ? result : (result as { projects: Project[] }).projects ?? [];
+  const result = await call<Project[] | { projects: Project[] }>(
+    "/core/projects",
+  );
+  return Array.isArray(result)
+    ? result
+    : ((result as { projects: Project[] }).projects ?? []);
 }
 
 export async function getProject(name: string): Promise<Project> {
@@ -175,8 +192,12 @@ export async function upsertDesign(design: {
 
 export async function patchDesign(
   name: string,
-  patch: { theme?: Partial<DesignTheme>; pages?: DesignPage[]; domain?: string },
-  projectId: string
+  patch: {
+    theme?: Partial<DesignTheme>;
+    pages?: DesignPage[];
+    domain?: string;
+  },
+  projectId: string,
 ): Promise<Design> {
   return call<Design>(`/core/designs/${name}`, {
     method: "PATCH",
@@ -185,23 +206,37 @@ export async function patchDesign(
   });
 }
 
-export async function deleteDesign(name: string, projectId: string): Promise<void> {
+export async function deleteDesign(
+  name: string,
+  projectId: string,
+): Promise<void> {
   await call(`/core/designs/${name}`, { method: "DELETE", projectId });
 }
 
 // ─── 4. Components ────────────────────────────────────────────────────────────
 
-export async function getComponents(projectId: string, pageRoute: string): Promise<ComponentInstance[]> {
-  const result = await call<ComponentInstance[] | { instances: ComponentInstance[] }>(
-    `/core/components?pageRoute=${encodeURIComponent(pageRoute)}`,
-    { projectId }
-  );
-  return Array.isArray(result) ? result : (result as { instances: ComponentInstance[] }).instances ?? [];
+export async function getComponents(
+  projectId: string,
+  pageRoute: string,
+): Promise<ComponentInstance[]> {
+  const result = await call<
+    ComponentInstance[] | { instances: ComponentInstance[] }
+  >(`/core/components?pageRoute=${encodeURIComponent(pageRoute)}`, {
+    projectId,
+  });
+  return Array.isArray(result)
+    ? result
+    : ((result as { instances: ComponentInstance[] }).instances ?? []);
 }
 
 export async function createComponent(
   projectId: string,
-  data: { componentType: string; pageRoute: string; order: number; props: Record<string, unknown> }
+  data: {
+    componentType: string;
+    pageRoute: string;
+    order: number;
+    props: Record<string, unknown>;
+  },
 ): Promise<ComponentInstance> {
   return call<ComponentInstance>("/core/components", {
     method: "POST",
@@ -213,7 +248,7 @@ export async function createComponent(
 export async function updateComponent(
   instanceId: string,
   props: Record<string, unknown>,
-  projectId: string
+  projectId: string,
 ): Promise<ComponentInstance> {
   return call<ComponentInstance>(`/core/components/${instanceId}`, {
     method: "PATCH",
@@ -222,13 +257,16 @@ export async function updateComponent(
   });
 }
 
-export async function deleteComponent(instanceId: string, projectId: string): Promise<void> {
+export async function deleteComponent(
+  instanceId: string,
+  projectId: string,
+): Promise<void> {
   await call(`/core/components/${instanceId}`, { method: "DELETE", projectId });
 }
 
 export async function reorderComponents(
   projectId: string,
-  instances: { instanceId: string; order: number }[]
+  instances: { instanceId: string; order: number }[],
 ): Promise<void> {
   await call("/core/components/reorder", {
     method: "POST",
@@ -242,14 +280,16 @@ export async function reorderComponents(
 export async function getDomains(projectId: string): Promise<DomainBinding[]> {
   const result = await call<DomainBinding[] | { domains: DomainBinding[] }>(
     "/infrastructure/domains",
-    { projectId }
+    { projectId },
   );
-  return Array.isArray(result) ? result : (result as { domains: DomainBinding[] }).domains ?? [];
+  return Array.isArray(result)
+    ? result
+    : ((result as { domains: DomainBinding[] }).domains ?? []);
 }
 
 export async function bindDomain(
   projectId: string,
-  data: { domain: string; upstreamHost: string; upstreamPort: number }
+  data: { domain: string; upstreamHost: string; upstreamPort: number },
 ): Promise<DomainBinding> {
   return call<DomainBinding>("/infrastructure/domains/bind", {
     method: "POST",
@@ -261,7 +301,7 @@ export async function bindDomain(
 export async function setDomainEnabled(
   domain: string,
   isEnabled: boolean,
-  projectId: string
+  projectId: string,
 ): Promise<void> {
   await call(`/infrastructure/domains/${encodeURIComponent(domain)}/enabled`, {
     method: "PATCH",
