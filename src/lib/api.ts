@@ -14,7 +14,8 @@ import type {
   DomainBinding,
 } from "./types";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v2";
+const BASE =
+  process.env.NEXT_PUBLIC_API_URL || "http://202.179.6.77:4000/api/v2";
 
 // ─── Token access (set by store on change) ────────────────────────────────────
 
