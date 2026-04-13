@@ -400,7 +400,7 @@ export default function BuilderPage({
         );
       } catch {}
     }
-    return id === "mock-landing" ? "Нүүр хуудас загвар" : id;
+    return id;
   });
 
   const [theme, setTheme] = useState<GlobalTheme>(() => {

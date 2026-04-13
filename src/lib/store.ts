@@ -110,10 +110,12 @@ interface AuthState {
   user: AdminUser | null;
   accessToken: string | null;
   refreshToken: string | null;
+  _hasHydrated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   /** Called by ThemeProvider / API module to sync tokens after load */
   syncTokens: () => void;
+  setHasHydrated: (v: boolean) => void;
 }
 
 const DEV_AUTH = process.env.NEXT_PUBLIC_DEV_AUTH === "1";
@@ -130,6 +132,9 @@ export const useAuthStore = create<AuthState>()(
       user: DEV_AUTH ? DEV_USER : null,
       accessToken: null,
       refreshToken: null,
+      _hasHydrated: false,
+
+      setHasHydrated: (v) => set({ _hasHydrated: v }),
 
       login: async (email, password) => {
         try {
@@ -168,6 +173,11 @@ export const useAuthStore = create<AuthState>()(
         });
       },
     }),
-    { name: "cms-auth" }
+    {
+      name: "cms-auth",
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
+    }
   )
 );

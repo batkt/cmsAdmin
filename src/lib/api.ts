@@ -221,13 +221,16 @@ export async function getComponents(
   pageRoute: string,
 ): Promise<ComponentInstance[]> {
   const result = await call<
-    ComponentInstance[] | { instances: ComponentInstance[] }
+    | ComponentInstance[]
+    | { components: ComponentInstance[] }
+    | { instances: ComponentInstance[] }
   >(`/core/components?pageRoute=${encodeURIComponent(pageRoute)}`, {
     projectId,
   });
-  return Array.isArray(result)
-    ? result
-    : ((result as { instances: ComponentInstance[] }).instances ?? []);
+  if (Array.isArray(result)) return result;
+  if ("components" in result)
+    return (result as { components: ComponentInstance[] }).components ?? [];
+  return (result as { instances: ComponentInstance[] }).instances ?? [];
 }
 
 export async function createComponent(
@@ -307,6 +310,45 @@ export async function setDomainEnabled(
   await call(`/infrastructure/domains/${encodeURIComponent(domain)}/enabled`, {
     method: "PATCH",
     body: { isEnabled },
+    projectId,
+  });
+}
+
+// ─── 6. Content Admin ─────────────────────────────────────────────────────────
+
+export async function getContentAdminBlocks(
+  projectId: string,
+  pageRoute?: string,
+): Promise<ComponentInstance[]> {
+  const query = pageRoute ? `?pageRoute=${encodeURIComponent(pageRoute)}` : "";
+  const result = await call<{ components: ComponentInstance[] }>(
+    `/content-admin/blocks${query}`,
+    { projectId },
+  );
+  return result.components ?? [];
+}
+
+export async function updateContentAdminText(
+  instanceId: string,
+  projectId: string,
+  fields: Record<string, string>,
+): Promise<void> {
+  await call(`/content-admin/blocks/${instanceId}/text`, {
+    method: "POST",
+    body: { fields },
+    projectId,
+  });
+}
+
+export async function updateContentAdminImages(
+  instanceId: string,
+  projectId: string,
+  images: { url: string; alt?: string }[],
+  mode: "replace" | "append" = "replace",
+): Promise<void> {
+  await call(`/content-admin/blocks/${instanceId}/images`, {
+    method: "POST",
+    body: { images, mode },
     projectId,
   });
 }
