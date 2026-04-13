@@ -1,5 +1,14 @@
 "use client";
-import { use, useEffect, useState, useRef, useCallback, createContext, useContext, Suspense } from "react";
+import {
+  use,
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+  createContext,
+  useContext,
+  Suspense,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import {
   DEFAULT_THEME as BUILDER_DEFAULT_THEME,
@@ -21,11 +30,19 @@ interface NavCtxValue {
   pageList: PageDef[];
   navigate: (slug: string) => void;
 }
-const NavCtx = createContext<NavCtxValue>({ activePage: "home", pageList: [], navigate: () => {} });
+const NavCtx = createContext<NavCtxValue>({
+  activePage: "home",
+  pageList: [],
+  navigate: () => {},
+});
 const useNav = () => useContext(NavCtx);
 
 /** Returns p[key_en] if lang=en and it exists, otherwise p[key] */
-function t(p: Record<string, string | number | boolean>, key: string, lang: Lang): string {
+function t(
+  p: Record<string, string | number | boolean>,
+  key: string,
+  lang: Lang,
+): string {
   if (lang === "en") {
     const en = String(p[`${key}_en`] ?? "");
     if (en) return en;
@@ -34,22 +51,47 @@ function t(p: Record<string, string | number | boolean>, key: string, lang: Lang
 }
 
 // ─── Button & nav link helpers ────────────────────────────────────────────────
-interface NavLinkDef { text: string; text_en: string; url: string }
-
-function parseNavLinks(raw: string): NavLinkDef[] {
-  return raw.split("\n").map(line => {
-    const [text = "", text_en = "", url = "#"] = line.split("|");
-    return { text: text.trim(), text_en: text_en.trim(), url: url.trim() || "#" };
-  }).filter(l => l.text);
+interface NavLinkDef {
+  text: string;
+  text_en: string;
+  url: string;
 }
 
-interface ButtonDef { text: string; text_en: string; url: string; style: "primary" | "outline" | "ghost" }
+function parseNavLinks(raw: string): NavLinkDef[] {
+  return raw
+    .split("\n")
+    .map((line) => {
+      const [text = "", text_en = "", url = "#"] = line.split("|");
+      return {
+        text: text.trim(),
+        text_en: text_en.trim(),
+        url: url.trim() || "#",
+      };
+    })
+    .filter((l) => l.text);
+}
+
+interface ButtonDef {
+  text: string;
+  text_en: string;
+  url: string;
+  style: "primary" | "outline" | "ghost";
+}
 
 function parseButtons(raw: string): ButtonDef[] {
-  return raw.split("\n").map(line => {
-    const [text = "", text_en = "", url = "#", style = "primary"] = line.split("|");
-    return { text: text.trim(), text_en: text_en.trim(), url: url.trim() || "#", style: style.trim() as ButtonDef["style"] };
-  }).filter(b => b.text);
+  return raw
+    .split("\n")
+    .map((line) => {
+      const [text = "", text_en = "", url = "#", style = "primary"] =
+        line.split("|");
+      return {
+        text: text.trim(),
+        text_en: text_en.trim(),
+        url: url.trim() || "#",
+        style: style.trim() as ButtonDef["style"],
+      };
+    })
+    .filter((b) => b.text);
 }
 
 function renderBtnText(b: ButtonDef, lang: Lang) {
@@ -93,14 +135,31 @@ const FALLBACK_STATE: BuilderState = {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+function decodeSharedState(encoded: string): BuilderState | null {
+  try {
+    return JSON.parse(decodeURIComponent(atob(encoded))) as BuilderState;
+  } catch {
+    return null;
+  }
+}
+
 function PreviewInner({ id }: { id: string }) {
   const searchParams = useSearchParams();
-  const [activePage, setActivePage] = useState<string>(searchParams.get("page") ?? "home");
+  const [activePage, setActivePage] = useState<string>(
+    searchParams.get("page") ?? "home",
+  );
   const [state, setState] = useState<BuilderState | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [lang, setLang] = useState<Lang>("mn");
 
+  // If a shared state is encoded in the URL (?d=...), use it directly — no localStorage needed
+  const sharedState = useRef<BuilderState | null>(
+    searchParams.get("d") ? decodeSharedState(searchParams.get("d")!) : null,
+  );
+
   const refresh = useCallback(() => {
+    // Skip localStorage when viewing a shared URL
+    if (sharedState.current) return;
     const s = loadState(id);
     setState(s);
     setRefreshing(true);
@@ -117,9 +176,14 @@ function PreviewInner({ id }: { id: string }) {
     return () => window.removeEventListener("storage", onStorage);
   }, [id, refresh]);
 
-  const effective = state ?? FALLBACK_STATE;
+  // Priority: shared URL state > localStorage > built-in fallback
+  const effective = sharedState.current ?? state ?? FALLBACK_STATE;
   const theme = effective.theme;
-  const allPages = effective.allPages ?? (effective.sections ? { home: effective.sections } : FALLBACK_STATE.allPages!);
+  const allPages =
+    effective.allPages ??
+    (effective.sections
+      ? { home: effective.sections }
+      : FALLBACK_STATE.allPages!);
   const sections = allPages[activePage] ?? [];
   const pageList = effective.pageList ?? FALLBACK_STATE.pageList!;
 
@@ -229,37 +293,130 @@ function PreviewInner({ id }: { id: string }) {
       `}</style>
 
       {/* Sections */}
-      <NavCtx.Provider value={{ activePage, pageList, navigate: (slug) => { setActivePage(slug); window.scrollTo({ top: 0, behavior: "smooth" }); } }}>
-      <LangCtx.Provider value={lang}>
-        {sections.length === 0 ? (
-          <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, color: "#64748b", fontFamily: "Inter, sans-serif" }}>
-            <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ opacity: 0.3 }}>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <p style={{ fontSize: 16, fontWeight: 600 }}>Байхгүй байна</p>
-            <p style={{ fontSize: 13 }}>Эхлээд Builder хуудсанд хэсгүүд нэмнэ үү</p>
-          </div>
-        ) : sections.map((s, i) => (
-          <SectionRenderer key={s.id} section={s} theme={theme} index={i} />
-        ))}
-      </LangCtx.Provider>
+      <NavCtx.Provider
+        value={{
+          activePage,
+          pageList,
+          navigate: (slug) => {
+            setActivePage(slug);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          },
+        }}
+      >
+        <LangCtx.Provider value={lang}>
+          {sections.length === 0 ? (
+            <div
+              style={{
+                minHeight: "100vh",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexDirection: "column",
+                gap: 12,
+                color: "#64748b",
+                fontFamily: "Inter, sans-serif",
+              }}
+            >
+              <svg
+                width="48"
+                height="48"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                style={{ opacity: 0.3 }}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M9 17v-2m3 2v-4m3 4v-6M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              <p style={{ fontSize: 16, fontWeight: 600 }}>Байхгүй байна</p>
+              <p style={{ fontSize: 13 }}>
+                Эхлээд Builder хуудсанд хэсгүүд нэмнэ үү
+              </p>
+            </div>
+          ) : (
+            sections.map((s, i) => (
+              <SectionRenderer key={s.id} section={s} theme={theme} index={i} />
+            ))
+          )}
+        </LangCtx.Provider>
       </NavCtx.Provider>
 
       {/* Floating bar: lang toggle + refresh */}
-      <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 9999, display: "flex", gap: 8, alignItems: "center" }}>
-        <div style={{ background: "#1e293b", borderRadius: 50, display: "flex", overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
+      <div
+        style={{
+          position: "fixed",
+          bottom: 20,
+          right: 20,
+          zIndex: 9999,
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+        }}
+      >
+        <div
+          style={{
+            background: "#1e293b",
+            borderRadius: 50,
+            display: "flex",
+            overflow: "hidden",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+          }}
+        >
           <button
             onClick={() => setLang("mn")}
-            style={{ padding: "9px 16px", fontSize: 13, fontWeight: 700, fontFamily: "inherit", border: "none", cursor: "pointer", background: lang === "mn" ? "#3b82f6" : "transparent", color: lang === "mn" ? "#fff" : "#94a3b8", transition: "all 0.15s" }}
-          >МН</button>
+            style={{
+              padding: "9px 16px",
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: "inherit",
+              border: "none",
+              cursor: "pointer",
+              background: lang === "mn" ? "#3b82f6" : "transparent",
+              color: lang === "mn" ? "#fff" : "#94a3b8",
+              transition: "all 0.15s",
+            }}
+          >
+            МН
+          </button>
           <button
             onClick={() => setLang("en")}
-            style={{ padding: "9px 16px", fontSize: 13, fontWeight: 700, fontFamily: "inherit", border: "none", cursor: "pointer", background: lang === "en" ? "#3b82f6" : "transparent", color: lang === "en" ? "#fff" : "#94a3b8", transition: "all 0.15s" }}
-          >EN</button>
+            style={{
+              padding: "9px 16px",
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: "inherit",
+              border: "none",
+              cursor: "pointer",
+              background: lang === "en" ? "#3b82f6" : "transparent",
+              color: lang === "en" ? "#fff" : "#94a3b8",
+              transition: "all 0.15s",
+            }}
+          >
+            EN
+          </button>
         </div>
-        <button className={`pv-refresh${refreshing ? " spinning" : ""}`} onClick={refresh} title="Шинэчлэх">
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        <button
+          className={`pv-refresh${refreshing ? " spinning" : ""}`}
+          onClick={refresh}
+          title="Шинэчлэх"
+        >
+          <svg
+            width="14"
+            height="14"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2.5}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
           </svg>
           Шинэчлэх
         </button>
@@ -268,7 +425,11 @@ function PreviewInner({ id }: { id: string }) {
   );
 }
 
-export default function PreviewPage({ params }: { params: Promise<{ id: string }> }) {
+export default function PreviewPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = use(params);
   return (
     <Suspense>
@@ -279,12 +440,27 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
 
 // ─── Section Renderer ─────────────────────────────────────────────────────────
 
-function SectionRenderer({ section, theme, index }: { section: Section; theme: GlobalTheme; index: number }) {
+function SectionRenderer({
+  section,
+  theme,
+  index,
+}: {
+  section: Section;
+  theme: GlobalTheme;
+  index: number;
+}) {
   const animClass = theme.animation !== "none" ? `anim-${theme.animation}` : "";
-  const delay = (n: number) => theme.animation !== "none" ? { animationDelay: `${n}ms`, animationFillMode: "both" } : {};
+  const delay = (n: number) =>
+    theme.animation !== "none"
+      ? { animationDelay: `${n}ms`, animationFillMode: "both" }
+      : {};
   const p = section.props;
 
-  function bgStyle(bgImage: string | undefined, bgOverlay: string | undefined, bgColor: string | undefined) {
+  function bgStyle(
+    bgImage: string | undefined,
+    bgOverlay: string | undefined,
+    bgColor: string | undefined,
+  ) {
     const img = String(bgImage || "");
     const overlay = String(bgOverlay || "transparent");
     const color = String(bgColor || "#fff");
@@ -299,19 +475,50 @@ function SectionRenderer({ section, theme, index }: { section: Section; theme: G
   }
 
   switch (section.type) {
-    case "navbar": return <NavbarSection p={p} theme={theme} />;
-    case "slider": return <SliderSection p={p} theme={theme} />;
-    case "hero":   return <HeroSection p={p} theme={theme} animClass={animClass} delay={delay} />;
-    case "features": return <FeaturesSection p={p} theme={theme} animClass={animClass} delay={delay} bgStyle={bgStyle} />;
-    case "cta":    return <CtaSection p={p} theme={theme} animClass={animClass} delay={delay} bgStyle={bgStyle} />;
-    case "footer": return <FooterSection p={p} theme={theme} />;
-    default: return null;
+    case "navbar":
+      return <NavbarSection p={p} theme={theme} />;
+    case "slider":
+      return <SliderSection p={p} theme={theme} />;
+    case "hero":
+      return (
+        <HeroSection p={p} theme={theme} animClass={animClass} delay={delay} />
+      );
+    case "features":
+      return (
+        <FeaturesSection
+          p={p}
+          theme={theme}
+          animClass={animClass}
+          delay={delay}
+          bgStyle={bgStyle}
+        />
+      );
+    case "cta":
+      return (
+        <CtaSection
+          p={p}
+          theme={theme}
+          animClass={animClass}
+          delay={delay}
+          bgStyle={bgStyle}
+        />
+      );
+    case "footer":
+      return <FooterSection p={p} theme={theme} />;
+    default:
+      return null;
   }
 }
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
 
-function NavbarSection({ p, theme }: { p: Record<string, string | number | boolean>; theme: GlobalTheme }) {
+function NavbarSection({
+  p,
+  theme,
+}: {
+  p: Record<string, string | number | boolean>;
+  theme: GlobalTheme;
+}) {
   const lang = useLang();
   const { activePage, pageList, navigate } = useNav();
   const bg = String(p.bgColor || "#ffffff");
@@ -320,11 +527,17 @@ function NavbarSection({ p, theme }: { p: Record<string, string | number | boole
 
   function resolveNav(e: React.MouseEvent<HTMLAnchorElement>, url: string) {
     const clean = url.replace(/^\//, "").toLowerCase();
-    const matched = pageList.find(pg =>
-      pg.slug === clean || ("/" + pg.slug) === url ||
-      pg.title.toLowerCase() === clean || pg.title_en.toLowerCase() === clean
+    const matched = pageList.find(
+      (pg) =>
+        pg.slug === clean ||
+        "/" + pg.slug === url ||
+        pg.title.toLowerCase() === clean ||
+        pg.title_en.toLowerCase() === clean,
     );
-    if (matched) { e.preventDefault(); navigate(matched.slug); }
+    if (matched) {
+      e.preventDefault();
+      navigate(matched.slug);
+    }
   }
 
   return (
@@ -332,8 +545,11 @@ function NavbarSection({ p, theme }: { p: Record<string, string | number | boole
       <div className="container">
         <div className="pv-nav-inner">
           {/* Logo */}
-          <div className="pv-nav-logo" style={{ color: theme.primaryColor, cursor: "pointer" }}
-            onClick={() => navigate(pageList[0]?.slug ?? "home")}>
+          <div
+            className="pv-nav-logo"
+            style={{ color: theme.primaryColor, cursor: "pointer" }}
+            onClick={() => navigate(pageList[0]?.slug ?? "home")}
+          >
             {String(p.logo || "Logo")}
           </div>
 
@@ -342,22 +558,28 @@ function NavbarSection({ p, theme }: { p: Record<string, string | number | boole
             {navLinks.map((l, i) => {
               const linkText = lang === "en" && l.text_en ? l.text_en : l.text;
               const clean = l.url.replace(/^\//, "").toLowerCase();
-              const matchedSlug = pageList.find(pg =>
-                pg.slug === clean || ("/" + pg.slug) === l.url
+              const matchedSlug = pageList.find(
+                (pg) => pg.slug === clean || "/" + pg.slug === l.url,
               )?.slug;
               const isActive = matchedSlug === activePage;
               return (
-                <a key={i} href={l.url}
+                <a
+                  key={i}
+                  href={l.url}
                   onClick={(e) => resolveNav(e, l.url)}
                   style={{
                     color,
                     fontWeight: isActive ? 700 : 500,
                     opacity: isActive ? 1 : 0.65,
-                    borderBottom: isActive ? `2px solid ${theme.primaryColor}` : "2px solid transparent",
+                    borderBottom: isActive
+                      ? `2px solid ${theme.primaryColor}`
+                      : "2px solid transparent",
                     paddingBottom: 2,
                     transition: "all 0.15s",
                   }}
-                >{linkText}</a>
+                >
+                  {linkText}
+                </a>
               );
             })}
           </div>
@@ -365,13 +587,21 @@ function NavbarSection({ p, theme }: { p: Record<string, string | number | boole
           {/* CTA buttons */}
           <div style={{ display: "flex", gap: 8 }}>
             {parseButtons(String(p.buttons || "")).map((b, i) => (
-              <a key={i} href={b.url} onClick={(e) => resolveNav(e, b.url)}
+              <a
+                key={i}
+                href={b.url}
+                onClick={(e) => resolveNav(e, b.url)}
                 className="pv-nav-cta"
                 style={{
-                  background: b.style === "primary" ? theme.primaryColor : "transparent",
+                  background:
+                    b.style === "primary" ? theme.primaryColor : "transparent",
                   color: b.style === "primary" ? "#fff" : theme.primaryColor,
-                  border: b.style === "ghost" ? "none" : `2px solid ${theme.primaryColor}`,
-                }}>
+                  border:
+                    b.style === "ghost"
+                      ? "none"
+                      : `2px solid ${theme.primaryColor}`,
+                }}
+              >
                 {renderBtnText(b, lang)}
               </a>
             ))}
@@ -384,14 +614,25 @@ function NavbarSection({ p, theme }: { p: Record<string, string | number | boole
 
 // ─── Slider ───────────────────────────────────────────────────────────────────
 
-function SliderSection({ p, theme }: { p: Record<string, string | number | boolean>; theme: GlobalTheme }) {
+function SliderSection({
+  p,
+  theme,
+}: {
+  p: Record<string, string | number | boolean>;
+  theme: GlobalTheme;
+}) {
   const lang = useLang();
   const rawSlides = t(p, "slides", lang);
   const slides = rawSlides
     .split("\n")
     .map((line) => {
       const [img, title, sub, btn] = line.split("|");
-      return { img: img?.trim() || "", title: title?.trim() || "", sub: sub?.trim() || "", btn: btn?.trim() || "Дэлгэрэнгүй" };
+      return {
+        img: img?.trim() || "",
+        title: title?.trim() || "",
+        sub: sub?.trim() || "",
+        btn: btn?.trim() || "Дэлгэрэнгүй",
+      };
     })
     .filter((s) => s.img || s.title);
 
@@ -404,21 +645,32 @@ function SliderSection({ p, theme }: { p: Record<string, string | number | boole
   const [current, setCurrent] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const goTo = useCallback((idx: number) => {
-    setCurrent((idx + slides.length) % slides.length);
-  }, [slides.length]);
+  const goTo = useCallback(
+    (idx: number) => {
+      setCurrent((idx + slides.length) % slides.length);
+    },
+    [slides.length],
+  );
 
   useEffect(() => {
     if (!autoPlay || slides.length < 2) return;
-    timerRef.current = setInterval(() => setCurrent((c) => (c + 1) % slides.length), interval);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    timerRef.current = setInterval(
+      () => setCurrent((c) => (c + 1) % slides.length),
+      interval,
+    );
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, [autoPlay, interval, slides.length]);
 
   if (slides.length === 0) return null;
 
   return (
     <div className="pv-slider" style={{ height }}>
-      <div className="pv-slides-track" style={{ transform: `translateX(-${current * 100}%)`, height: "100%" }}>
+      <div
+        className="pv-slides-track"
+        style={{ transform: `translateX(-${current * 100}%)`, height: "100%" }}
+      >
         {slides.map((s, i) => (
           <div
             key={i}
@@ -433,7 +685,12 @@ function SliderSection({ p, theme }: { p: Record<string, string | number | boole
             <div className="pv-slide-content" style={{ color: textColor }}>
               <h2 className="pv-slide-title">{s.title}</h2>
               {s.sub && <p className="pv-slide-sub">{s.sub}</p>}
-              <button className="pv-slide-btn" style={{ background: theme.primaryColor, color: "#fff" }}>{s.btn}</button>
+              <button
+                className="pv-slide-btn"
+                style={{ background: theme.primaryColor, color: "#fff" }}
+              >
+                {s.btn}
+              </button>
             </div>
           </div>
         ))}
@@ -441,11 +698,25 @@ function SliderSection({ p, theme }: { p: Record<string, string | number | boole
 
       {slides.length > 1 && (
         <>
-          <button className="pv-slider-arrow pv-slider-prev" onClick={() => goTo(current - 1)}>‹</button>
-          <button className="pv-slider-arrow pv-slider-next" onClick={() => goTo(current + 1)}>›</button>
+          <button
+            className="pv-slider-arrow pv-slider-prev"
+            onClick={() => goTo(current - 1)}
+          >
+            ‹
+          </button>
+          <button
+            className="pv-slider-arrow pv-slider-next"
+            onClick={() => goTo(current + 1)}
+          >
+            ›
+          </button>
           <div className="pv-slider-dots">
             {slides.map((_, i) => (
-              <button key={i} className={`pv-dot${i === current ? " active" : ""}`} onClick={() => goTo(i)} />
+              <button
+                key={i}
+                className={`pv-dot${i === current ? " active" : ""}`}
+                onClick={() => goTo(i)}
+              />
             ))}
           </div>
         </>
@@ -456,7 +727,12 @@ function SliderSection({ p, theme }: { p: Record<string, string | number | boole
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
 
-function HeroSection({ p, theme, animClass, delay }: {
+function HeroSection({
+  p,
+  theme,
+  animClass,
+  delay,
+}: {
   p: Record<string, string | number | boolean>;
   theme: GlobalTheme;
   animClass: string;
@@ -467,8 +743,16 @@ function HeroSection({ p, theme, animClass, delay }: {
 
   function handleUrl(e: React.MouseEvent<HTMLAnchorElement>, url: string) {
     const clean = url.replace(/^\//, "").toLowerCase();
-    const matched = pageList.find(pg => pg.slug === clean || ("/" + pg.slug) === url || pg.title_en.toLowerCase() === clean);
-    if (matched) { e.preventDefault(); navigate(matched.slug); }
+    const matched = pageList.find(
+      (pg) =>
+        pg.slug === clean ||
+        "/" + pg.slug === url ||
+        pg.title_en.toLowerCase() === clean,
+    );
+    if (matched) {
+      e.preventDefault();
+      navigate(matched.slug);
+    }
   }
   const bgImage = String(p.bgImage || "");
   const bgOverlay = String(p.bgOverlay || "#1e3a8a99");
@@ -477,31 +761,77 @@ function HeroSection({ p, theme, animClass, delay }: {
   const align = String(p.align || "center") as "left" | "center" | "right";
 
   const bgStyleObj = bgImage
-    ? { backgroundImage: `linear-gradient(${bgOverlay}, ${bgOverlay}), url(${bgImage})`, backgroundSize: "cover", backgroundPosition: "center" }
-    : { background: `linear-gradient(135deg, ${bgColor}, ${theme.primaryColor})` };
+    ? {
+        backgroundImage: `linear-gradient(${bgOverlay}, ${bgOverlay}), url(${bgImage})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }
+    : {
+        background: `linear-gradient(135deg, ${bgColor}, ${theme.primaryColor})`,
+      };
 
   return (
     <section className="pv-hero" style={{ ...bgStyleObj, textAlign: align }}>
-      {bgImage && <div className="pv-hero-overlay" style={{ background: bgOverlay }} />}
+      {bgImage && (
+        <div className="pv-hero-overlay" style={{ background: bgOverlay }} />
+      )}
       <div className="pv-hero-content" style={{ color: textColor }}>
         {p.subheading && (
-          <div className={`sub ${animClass}`} style={delay(0)}>{t(p, "subheading", lang)}</div>
+          <div className={`sub ${animClass}`} style={delay(0)}>
+            {t(p, "subheading", lang)}
+          </div>
         )}
-        <h1 className={animClass} style={{ ...delay(80), fontSize: theme.headingSize, color: textColor }}>
+        <h1
+          className={animClass}
+          style={{
+            ...delay(80),
+            fontSize: theme.headingSize,
+            color: textColor,
+          }}
+        >
           {t(p, "heading", lang) || "Гарчиг"}
         </h1>
         {p.body && (
-          <p className={`body ${animClass}`} style={delay(160)}>{t(p, "body", lang)}</p>
+          <p className={`body ${animClass}`} style={delay(160)}>
+            {t(p, "body", lang)}
+          </p>
         )}
-        <div className={`pv-hero-btns ${animClass}`} style={{ ...delay(240), justifyContent: align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center" }}>
+        <div
+          className={`pv-hero-btns ${animClass}`}
+          style={{
+            ...delay(240),
+            justifyContent:
+              align === "left"
+                ? "flex-start"
+                : align === "right"
+                  ? "flex-end"
+                  : "center",
+          }}
+        >
           {parseButtons(String(p.buttons || "")).map((b, i) => (
-            <a key={i} href={b.url} onClick={(e) => handleUrl(e, b.url)} style={{
-              display: "inline-block",
-              background: b.style === "primary" ? theme.primaryColor : "transparent",
-              color: b.style === "primary" ? "#fff" : String(p.textColor || "#fff"),
-              border: b.style === "ghost" ? "none" : `2px solid ${b.style === "primary" ? theme.primaryColor : "rgba(255,255,255,0.5)"}`,
-              fontWeight: 700, fontSize: 15, padding: "13px 30px", borderRadius: 10, textDecoration: "none",
-            }}>
+            <a
+              key={i}
+              href={b.url}
+              onClick={(e) => handleUrl(e, b.url)}
+              style={{
+                display: "inline-block",
+                background:
+                  b.style === "primary" ? theme.primaryColor : "transparent",
+                color:
+                  b.style === "primary"
+                    ? "#fff"
+                    : String(p.textColor || "#fff"),
+                border:
+                  b.style === "ghost"
+                    ? "none"
+                    : `2px solid ${b.style === "primary" ? theme.primaryColor : "rgba(255,255,255,0.5)"}`,
+                fontWeight: 700,
+                fontSize: 15,
+                padding: "13px 30px",
+                borderRadius: 10,
+                textDecoration: "none",
+              }}
+            >
               {renderBtnText(b, lang)}
             </a>
           ))}
@@ -513,17 +843,31 @@ function HeroSection({ p, theme, animClass, delay }: {
 
 // ─── Features ─────────────────────────────────────────────────────────────────
 
-function FeaturesSection({ p, theme, animClass, delay, bgStyle }: {
+function FeaturesSection({
+  p,
+  theme,
+  animClass,
+  delay,
+  bgStyle,
+}: {
   p: Record<string, string | number | boolean>;
   theme: GlobalTheme;
   animClass: string;
   delay: (n: number) => React.CSSProperties;
-  bgStyle: (img?: string, overlay?: string, color?: string) => React.CSSProperties;
+  bgStyle: (
+    img?: string,
+    overlay?: string,
+    color?: string,
+  ) => React.CSSProperties;
 }) {
   const lang = useLang();
   const titleColor = String(p.titleColor || theme.secondaryColor);
   const textColor = String(p.textColor || "#64748b");
-  const bg = bgStyle(String(p.bgImage || ""), String(p.bgOverlay || ""), String(p.bgColor || "#f8fafc"));
+  const bg = bgStyle(
+    String(p.bgImage || ""),
+    String(p.bgOverlay || ""),
+    String(p.bgColor || "#f8fafc"),
+  );
 
   const items = t(p, "items", lang)
     .split("\n")
@@ -535,16 +879,31 @@ function FeaturesSection({ p, theme, animClass, delay, bgStyle }: {
 
   return (
     <section className="pv-features" style={bg}>
-      {p.bgImage && <div className="pv-features-overlay" style={{ background: String(p.bgOverlay || "transparent") }} />}
+      {p.bgImage && (
+        <div
+          className="pv-features-overlay"
+          style={{ background: String(p.bgOverlay || "transparent") }}
+        />
+      )}
       <div className="pv-features-content container">
         <div style={{ textAlign: "center" }}>
           {p.title && (
-            <h2 className={`pv-section-title ${animClass}`} style={{ ...delay(0), fontSize: theme.headingSize * 0.7, color: titleColor }}>
+            <h2
+              className={`pv-section-title ${animClass}`}
+              style={{
+                ...delay(0),
+                fontSize: theme.headingSize * 0.7,
+                color: titleColor,
+              }}
+            >
               {t(p, "title", lang)}
             </h2>
           )}
           {p.subtitle && (
-            <p className={`pv-section-sub ${animClass}`} style={{ ...delay(80), color: textColor, margin: "12px auto 0" }}>
+            <p
+              className={`pv-section-sub ${animClass}`}
+              style={{ ...delay(80), color: textColor, margin: "12px auto 0" }}
+            >
               {t(p, "subtitle", lang)}
             </p>
           )}
@@ -559,10 +918,18 @@ function FeaturesSection({ p, theme, animClass, delay, bgStyle }: {
             const title = isEmoji ? parts.slice(1).join(" ") : item.title;
 
             return (
-              <div key={i} className={`pv-feat-card ${animClass}`} style={delay(i * 60)}>
+              <div
+                key={i}
+                className={`pv-feat-card ${animClass}`}
+                style={delay(i * 60)}
+              >
                 {emoji && <div className="pv-feat-icon">{emoji}</div>}
-                <div className="pv-feat-title" style={{ color: titleColor }}>{title}</div>
-                <div className="pv-feat-desc" style={{ color: textColor }}>{item.desc}</div>
+                <div className="pv-feat-title" style={{ color: titleColor }}>
+                  {title}
+                </div>
+                <div className="pv-feat-desc" style={{ color: textColor }}>
+                  {item.desc}
+                </div>
               </div>
             );
           })}
@@ -574,43 +941,95 @@ function FeaturesSection({ p, theme, animClass, delay, bgStyle }: {
 
 // ─── CTA ──────────────────────────────────────────────────────────────────────
 
-function CtaSection({ p, theme, animClass, delay, bgStyle }: {
+function CtaSection({
+  p,
+  theme,
+  animClass,
+  delay,
+  bgStyle,
+}: {
   p: Record<string, string | number | boolean>;
   theme: GlobalTheme;
   animClass: string;
   delay: (n: number) => React.CSSProperties;
-  bgStyle: (img?: string, overlay?: string, color?: string) => React.CSSProperties;
+  bgStyle: (
+    img?: string,
+    overlay?: string,
+    color?: string,
+  ) => React.CSSProperties;
 }) {
   const lang = useLang();
   const { pageList, navigate } = useNav();
 
   function handleUrl(e: React.MouseEvent<HTMLAnchorElement>, url: string) {
     const clean = url.replace(/^\//, "").toLowerCase();
-    const matched = pageList.find(pg => pg.slug === clean || ("/" + pg.slug) === url || pg.title_en.toLowerCase() === clean);
-    if (matched) { e.preventDefault(); navigate(matched.slug); }
+    const matched = pageList.find(
+      (pg) =>
+        pg.slug === clean ||
+        "/" + pg.slug === url ||
+        pg.title_en.toLowerCase() === clean,
+    );
+    if (matched) {
+      e.preventDefault();
+      navigate(matched.slug);
+    }
   }
   const textColor = String(p.textColor || "#ffffff");
-  const bg = bgStyle(String(p.bgImage || ""), String(p.bgOverlay || ""), String(p.bgColor || theme.secondaryColor));
+  const bg = bgStyle(
+    String(p.bgImage || ""),
+    String(p.bgOverlay || ""),
+    String(p.bgColor || theme.secondaryColor),
+  );
 
   return (
     <section className="pv-cta" style={bg}>
-      {p.bgImage && <div className="pv-cta-overlay" style={{ background: String(p.bgOverlay || "transparent") }} />}
+      {p.bgImage && (
+        <div
+          className="pv-cta-overlay"
+          style={{ background: String(p.bgOverlay || "transparent") }}
+        />
+      )}
       <div className="pv-cta-content" style={{ color: textColor }}>
-        <h2 className={animClass} style={{ ...delay(0), fontSize: theme.headingSize * 0.85, color: textColor }}>
+        <h2
+          className={animClass}
+          style={{
+            ...delay(0),
+            fontSize: theme.headingSize * 0.85,
+            color: textColor,
+          }}
+        >
           {t(p, "heading", lang) || "Уриалга"}
         </h2>
         {p.subheading && (
-          <p className={animClass} style={delay(80)}>{t(p, "subheading", lang)}</p>
+          <p className={animClass} style={delay(80)}>
+            {t(p, "subheading", lang)}
+          </p>
         )}
         <div className={`pv-cta-btns ${animClass}`} style={delay(160)}>
           {parseButtons(String(p.buttons || "")).map((b, i) => (
-            <a key={i} href={b.url} onClick={(e) => handleUrl(e, b.url)} style={{
-              display: "inline-block",
-              background: b.style === "primary" ? theme.primaryColor : "transparent",
-              color: b.style === "primary" ? "#fff" : String(p.textColor || "#fff"),
-              border: b.style === "ghost" ? "none" : `2px solid ${b.style === "primary" ? theme.primaryColor : "rgba(255,255,255,0.4)"}`,
-              fontWeight: 700, fontSize: 15, padding: "13px 30px", borderRadius: 10, textDecoration: "none",
-            }}>
+            <a
+              key={i}
+              href={b.url}
+              onClick={(e) => handleUrl(e, b.url)}
+              style={{
+                display: "inline-block",
+                background:
+                  b.style === "primary" ? theme.primaryColor : "transparent",
+                color:
+                  b.style === "primary"
+                    ? "#fff"
+                    : String(p.textColor || "#fff"),
+                border:
+                  b.style === "ghost"
+                    ? "none"
+                    : `2px solid ${b.style === "primary" ? theme.primaryColor : "rgba(255,255,255,0.4)"}`,
+                fontWeight: 700,
+                fontSize: 15,
+                padding: "13px 30px",
+                borderRadius: 10,
+                textDecoration: "none",
+              }}
+            >
               {renderBtnText(b, lang)}
             </a>
           ))}
@@ -622,25 +1041,42 @@ function CtaSection({ p, theme, animClass, delay, bgStyle }: {
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
-function FooterSection({ p, theme }: { p: Record<string, string | number | boolean>; theme: GlobalTheme }) {
+function FooterSection({
+  p,
+  theme,
+}: {
+  p: Record<string, string | number | boolean>;
+  theme: GlobalTheme;
+}) {
   const lang = useLang();
   const bg = String(p.bgColor || "#0f172a");
   const color = String(p.textColor || "#94a3b8");
-  const links = t(p, "links", lang).split(",").map((l) => l.trim()).filter(Boolean);
+  const links = t(p, "links", lang)
+    .split(",")
+    .map((l) => l.trim())
+    .filter(Boolean);
 
   return (
     <footer className="pv-footer" style={{ background: bg, color }}>
       <div className="container">
         <div className="pv-footer-inner">
-          <div className="pv-footer-brand" style={{ color: theme.primaryColor }}>
+          <div
+            className="pv-footer-brand"
+            style={{ color: theme.primaryColor }}
+          >
             {String(p.brand || "Brand")}
           </div>
           <div className="pv-footer-links">
-            {links.map((l, i) => <a key={i} href="#" style={{ color }}>{l}</a>)}
+            {links.map((l, i) => (
+              <a key={i} href="#" style={{ color }}>
+                {l}
+              </a>
+            ))}
           </div>
         </div>
         <div className="pv-footer-copy" style={{ color }}>
-          {t(p, "copyright", lang) || `© ${new Date().getFullYear()} — All rights reserved`}
+          {t(p, "copyright", lang) ||
+            `© ${new Date().getFullYear()} — All rights reserved`}
         </div>
       </div>
     </footer>
