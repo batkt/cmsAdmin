@@ -1,6 +1,14 @@
 "use client";
 import { use, useEffect, useState, useRef, useCallback, createContext, useContext, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import {
+  DEFAULT_THEME as BUILDER_DEFAULT_THEME,
+  DEFAULT_PAGE_LIST as BUILDER_DEFAULT_PAGE_LIST,
+  buildDefaultAllPages,
+  type GlobalTheme as BuilderGlobalTheme,
+  type Section as BuilderSection,
+  type PageDef as BuilderPageDef,
+} from "@/lib/builder-defaults";
 
 // ─── Language context ─────────────────────────────────────────────────────────
 type Lang = "mn" | "en";
@@ -48,36 +56,11 @@ function renderBtnText(b: ButtonDef, lang: Lang) {
   return lang === "en" && b.text_en ? b.text_en : b.text;
 }
 
-// ─── Types (mirrors builder page) ─────────────────────────────────────────────
+// ─── Types (aliased from shared module) ──────────────────────────────────────
 
-type SectionType = "navbar" | "slider" | "hero" | "features" | "cta" | "footer";
-type AnimStyle = "none" | "fade-up" | "slide-left" | "zoom-in";
-
-interface GlobalTheme {
-  primaryColor: string;
-  secondaryColor: string;
-  fontFamily: string;
-  headingSize: number;
-  bodySize: number;
-  animation: AnimStyle;
-}
-
-interface Section {
-  id: string;
-  type: SectionType;
-  props: Record<string, string | number | boolean>;
-}
-
-interface PageDef { slug: string; title: string; title_en: string }
-
-const PAGE_LIST: PageDef[] = [
-  { slug: "home",        title: "Нүүр",            title_en: "Home" },
-  { slug: "about",       title: "Бидний тухай",    title_en: "About Us" },
-  { slug: "services",    title: "Үйл ажиллагаа",  title_en: "Services" },
-  { slug: "partnership", title: "Хамтран ажиллах", title_en: "Partnership" },
-  { slug: "news",        title: "Мэдээ мэдээлэл",  title_en: "News" },
-  { slug: "contact",     title: "Холбоо барих",    title_en: "Contact" },
-];
+type GlobalTheme = BuilderGlobalTheme;
+type Section = BuilderSection;
+type PageDef = BuilderPageDef;
 
 interface BuilderState {
   templateName: string;
@@ -87,19 +70,9 @@ interface BuilderState {
   sections?: Section[]; // legacy
 }
 
-// ─── Defaults (fallback when no localStorage) ─────────────────────────────────
-
-const DEFAULT_THEME: GlobalTheme = {
-  primaryColor: "#1e40af",
-  secondaryColor: "#0f172a",
-  fontFamily: "Inter",
-  headingSize: 48,
-  bodySize: 16,
-  animation: "fade-up",
-};
-
 const STORAGE_KEY = (id: string) => `builder-state-${id}`;
 
+/** Load from localStorage; returns null if absent (caller uses fallback defaults) */
 function loadState(id: string): BuilderState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY(id));
@@ -109,6 +82,14 @@ function loadState(id: string): BuilderState | null {
     return null;
   }
 }
+
+/** Full default state for mock-landing (works on any machine, no localStorage needed) */
+const FALLBACK_STATE: BuilderState = {
+  templateName: "mock-landing",
+  theme: { ...BUILDER_DEFAULT_THEME },
+  pageList: BUILDER_DEFAULT_PAGE_LIST,
+  allPages: buildDefaultAllPages(),
+};
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -136,10 +117,11 @@ function PreviewInner({ id }: { id: string }) {
     return () => window.removeEventListener("storage", onStorage);
   }, [id, refresh]);
 
-  const theme = state?.theme ?? DEFAULT_THEME;
-  const allPages = state?.allPages ?? (state?.sections ? { home: state.sections } : {});
+  const effective = state ?? FALLBACK_STATE;
+  const theme = effective.theme;
+  const allPages = effective.allPages ?? (effective.sections ? { home: effective.sections } : FALLBACK_STATE.allPages!);
   const sections = allPages[activePage] ?? [];
-  const pageList = state?.pageList ?? PAGE_LIST;
+  const pageList = effective.pageList ?? FALLBACK_STATE.pageList!;
 
   return (
     <>
