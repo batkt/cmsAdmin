@@ -184,7 +184,10 @@ function PreviewInner({ id }: { id: string }) {
     (effective.sections
       ? { home: effective.sections }
       : FALLBACK_STATE.allPages!);
-  const sections = allPages[activePage] ?? [];
+  // Fall back to FALLBACK_STATE's sections for any page not yet built by the user
+  const sections = allPages[activePage]?.length
+    ? allPages[activePage]
+    : (FALLBACK_STATE.allPages![activePage] ?? []);
   const pageList = effective.pageList ?? FALLBACK_STATE.pageList!;
 
   return (

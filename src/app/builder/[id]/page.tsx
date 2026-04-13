@@ -657,6 +657,12 @@ export default function BuilderPage({
           onPageChange={(slug) => {
             setCurrentPage(slug);
             setSelectedId(null);
+            // Seed default sections if this page has never been edited
+            setAllPages((ap) => {
+              if (ap[slug]?.length) return ap;
+              const page = pageList.find((p) => p.slug === slug);
+              return { ...ap, [slug]: defaultSectionsForPage(slug, page?.title) };
+            });
           }}
           onAddPage={addPage}
           onDeletePage={deletePage}
