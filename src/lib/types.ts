@@ -56,6 +56,8 @@ export interface ComponentInstance {
   pageRoute: string;
   order: number;
   props: Record<string, unknown>;
+  /** Set when this instance is nested inside another component (e.g. slot). */
+  parentId?: string | null;
 }
 
 // ─── Domain ───────────────────────────────────────────────────────────────────
