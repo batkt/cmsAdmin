@@ -58,6 +58,8 @@ export interface ComponentInstance {
   props: Record<string, unknown>;
   /** Set when this instance is nested inside another component (e.g. slot). */
   parentId?: string | null;
+  /** Slot name when nested under a parent instance. */
+  slot?: string | null;
 }
 
 // ─── Domain ───────────────────────────────────────────────────────────────────
